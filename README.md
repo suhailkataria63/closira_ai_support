@@ -5,7 +5,7 @@ This project is a Python-based AI customer support workflow for a fictional SMB:
 ## Features
 
 - SOP grounded answering
-- Lead qualification
+- Lead qualification with three structured questions
 - Escalation detection
 - Structured conversation summary
 - OpenAI integration
@@ -108,8 +108,15 @@ Type customer messages in the CLI. Type `summary` to end the conversation and ge
 ```text
 Customer: What are your Botox prices?
 AI: Botox starts from £200 at Bloom Aesthetics Clinic.
-AI Qualification Question: Which service are you interested in: Botox, fillers, or consultation?
+To help you better, may I ask:
+- Which service are you interested in: Botox, fillers, or consultation?
 Customer: Botox
+To help you better, may I ask:
+- Have you visited Bloom Aesthetics Clinic before?
+Customer: No
+To help you better, may I ask:
+- What is your preferred booking channel: WhatsApp or website?
+Customer: WhatsApp
 Customer: summary
 ```
 

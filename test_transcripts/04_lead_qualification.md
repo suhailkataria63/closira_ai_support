@@ -1,38 +1,32 @@
 # Test Transcript 04 - Lead Qualification
 
-Expected assignment behaviour: structured lead qualification.
+Expected assignment behaviour: exactly three structured lead qualification questions.
 
-Note: In OpenAI mode, wording may vary slightly. This transcript avoids inventing unsupported fields: the current SOP supports interested service, previous visit status, and preferred booking channel.
+Note: In OpenAI mode, wording of the SOP answer may vary slightly. The qualification questions are fixed by the workflow and should match this sequence.
 
 ```text
 Closira Demo Assistant - Bloom Aesthetics Clinic
 Type 'summary' to end the session and generate a structured summary.
 
-Customer: I want to book an appointment.
-AI: Bookings can be made via WhatsApp or the website.
+Customer: What are your Botox prices?
+AI: Botox starts from £200 at Bloom Aesthetics Clinic.
 To help you better, may I ask:
 - Which service are you interested in: Botox, fillers, or consultation?
-Customer: Fillers
-
-Customer: What are your opening hours?
-AI: Bloom Aesthetics Clinic is open Monday to Saturday, 9 am to 7 pm.
+Customer: Botox
 To help you better, may I ask:
 - Have you visited Bloom Aesthetics Clinic before?
-Customer: No, this will be my first visit.
-
-Customer: Can I book online?
-AI: Bookings can be made via WhatsApp or the website.
+Customer: No
 To help you better, may I ask:
-- Would you prefer booking through WhatsApp or the website?
+- What is your preferred booking channel: WhatsApp or website?
 Customer: WhatsApp
 ```
 
 Expected qualification details collected:
 
-- Interested service: Fillers
-- Previous visit status: No, this will be my first visit.
-- Preferred booking channel: WhatsApp
+- `interested_service`: Botox
+- `previous_visit_status`: No
+- `preferred_booking_channel`: WhatsApp
 
 Current limitation:
 
-- The current CLI does not ask for business type, customer type, team size, or current tools because those fields are not part of the current Bloom Aesthetics Clinic SOP.
+- The workflow asks the three clinic-specific qualification questions from the SOP. It does not ask business type, team size, or current tools because those are not relevant to the Bloom Aesthetics Clinic SOP.

@@ -7,6 +7,13 @@ from logger import ConversationLogger
 from sop_loader import load_sop
 
 
+QUALIFICATION_KEYS = [
+    "interested_service",
+    "previous_visit_status",
+    "preferred_booking_channel",
+]
+
+
 @dataclass
 class ConversationState:
     messages: List[Dict[str, str]] = field(default_factory=list)
@@ -51,6 +58,9 @@ class SupportWorkflow:
         if response.get("out_of_scope") or response.get("escalation_required"):
             return None
 
+        return self.next_lead_question()
+
+    def next_lead_question(self) -> Optional[str]:
         next_question = self.agent.next_lead_question(self.state.qualification_index)
         if next_question is not None:
             self.state.qualification_index += 1
@@ -73,8 +83,9 @@ class SupportWorkflow:
         return response
 
     def store_lead_response(self, question: str, answer: str) -> None:
-        self.state.lead_details[question] = answer
-        self._log("lead_detail_collected", {"question": question, "answer": answer})
+        key = self._qualification_key_for_question(question)
+        self.state.lead_details[key] = answer
+        self._log("lead_detail_collected", {"key": key, "question": question, "answer": answer})
 
     def run_stage_4_conversation_summary(self) -> Dict[str, Any]:
         summary = self.agent.generate_summary(
@@ -102,3 +113,14 @@ class SupportWorkflow:
             self.logger.write(event_type, payload)
         except Exception:
             pass
+
+    def _qualification_key_for_question(self, question: str) -> str:
+        questions = self.sop.get("lead_qualification_questions", [])
+        try:
+            index = questions.index(question)
+        except ValueError:
+            return question
+
+        if index >= len(QUALIFICATION_KEYS):
+            return question
+        return QUALIFICATION_KEYS[index]
