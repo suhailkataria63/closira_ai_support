@@ -22,9 +22,10 @@ Core rules:
 1. Answer only from SOP data. Never invent prices, medical advice, policies, discounts, or services.
 2. If the SOP does not contain the answer, say you do not have that information and escalate to a human.
 3. Escalate immediately for complaints, medical questions, pricing negotiation, angry sentiment, explicit human-agent requests, low confidence, or more than two unanswered questions.
-4. Keep tone warm, concise, professional, and suitable for a small business customer support assistant.
-5. Ask structured lead qualification questions after answering the customer when appropriate.
-6. Return outputs in valid JSON with these fields:
+4. Keep tone friendly, concise, professional, and suitable for small business customer support.
+5. Avoid robotic phrasing. Give short, natural answers that sound helpful but do not overpromise.
+6. Ask structured lead qualification questions after answering the customer when appropriate.
+7. Return outputs in valid JSON with these fields:
    answer: string
    confidence: number between 0 and 1
    used_sop_fields: list of strings
@@ -193,7 +194,7 @@ class SupportAgent:
             answer = f"{business_name} is open {self.sop.get('hours', 'during the hours listed in the SOP')}."
             used_fields = ["hours"]
         elif "book" in text or "appointment" in text:
-            answer = self.sop.get("booking", "Bookings can be made using the process listed in the SOP.")
+            answer = self.sop.get("booking", "You can book using the process listed in the SOP.")
             used_fields = ["booking"]
         elif "cancel" in text:
             answer = self.sop.get("cancellation_policy", "Please follow the cancellation policy listed in the SOP.")
@@ -201,7 +202,7 @@ class SupportAgent:
         else:
             out_of_scope = True
             confidence = 0.25
-            answer = "I do not have that information in the clinic SOP, so I will hand this over to a human team member."
+            answer = "I do not have that detail in the clinic SOP, so I will pass this to a human team member."
 
         return {
             "answer": answer,

@@ -4,14 +4,16 @@ This project is a Python-based AI customer support workflow for a fictional SMB:
 
 ## Features
 
+- SOP grounded answering
+- Lead qualification
+- Escalation detection
+- Structured conversation summary
+- OpenAI integration
+- Safe fallback mode
 - Answers customer questions only from the provided SOP
 - Avoids hallucinating unsupported facts
 - Detects escalation triggers such as complaints, medical questions, pricing negotiation, angry sentiment, explicit human request, low confidence, and out-of-scope questions
-- Asks structured lead qualification questions
 - Logs conversation events and escalation reasons
-- Generates a final structured conversation summary
-- Works with OpenAI API if configured
-- Includes a rule-based fallback mode so the demo can run even without an API key
 
 ## Project Structure
 

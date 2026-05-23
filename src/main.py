@@ -1,6 +1,70 @@
 from workflow import SupportWorkflow
 
 
+DIVIDER = "-" * 50
+
+
+def print_list(title: str, items: object) -> None:
+    print(f"{title}:")
+    if not items:
+        print("- None")
+        return
+
+    if isinstance(items, dict):
+        for key, value in items.items():
+            print(f"- {format_detail_label(key)}: {value}")
+        return
+
+    for item in items:
+        print(f"- {item}")
+
+
+def format_detail_label(label: str) -> str:
+    normalized = label.strip().rstrip("?")
+    lower_label = normalized.lower()
+
+    if "which service" in lower_label:
+        return "Interested service"
+    if "visited" in lower_label:
+        return "Previous visit status"
+    if "whatsapp" in lower_label or "website" in lower_label:
+        return "Preferred booking channel"
+
+    return normalized
+
+
+def print_summary(summary: dict) -> None:
+    print(DIVIDER)
+    print("Conversation Summary")
+    print(DIVIDER)
+    print("Customer Intent:")
+    print(summary.get("customer_intent", "Not captured"))
+    print()
+
+    print_list("Key Details Collected", summary.get("key_details_collected", {}))
+    print()
+    print_list("SOP Gaps Identified", summary.get("sop_gaps_identified", []))
+    print()
+    print_list("Escalation Reasons", summary.get("escalation_reasons", []))
+    print()
+
+    print("Recommended Next Action:")
+    print(summary.get("recommended_next_action", "Continue the conversation."))
+    print(DIVIDER)
+
+
+def print_escalation(reasons: list) -> None:
+    print(DIVIDER)
+    print("Escalation Triggered")
+    print("Reason(s):")
+    if reasons:
+        for reason in reasons:
+            print(f"- {reason}")
+    else:
+        print("- unspecified")
+    print(DIVIDER)
+
+
 def main() -> None:
     workflow = SupportWorkflow()
     print("Closira Demo Assistant - Bloom Aesthetics Clinic")
@@ -11,20 +75,21 @@ def main() -> None:
         if not customer_message:
             continue
         if customer_message.lower() in {"summary", "exit", "quit"}:
-            print("\nConversation Summary:")
-            print(workflow.summarize())
+            print()
+            print_summary(workflow.summarize())
             break
 
         response = workflow.handle_message(customer_message)
         print(f"AI: {response['answer']}")
         if response.get("next_question"):
             question = response["next_question"]
-            print(f"AI Qualification Question: {question}")
+            print("To help you better, may I ask:")
+            print(f"- {question}")
             lead_answer = input("Customer: ").strip()
             workflow.store_lead_response(question, lead_answer)
 
         if response.get("escalation_required"):
-            print(f"[Escalation flagged: {', '.join(response.get('escalation_reason', []))}]")
+            print_escalation(response.get("escalation_reason", []))
 
 
 if __name__ == "__main__":
