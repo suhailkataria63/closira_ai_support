@@ -1,24 +1,38 @@
-# Test Transcript 04 — Lead Qualification
+# Test Transcript 04 - Lead Qualification
 
-**Customer:** I want to book an appointment.
+Expected assignment behaviour: structured lead qualification.
 
-**AI:** Bookings can be made via WhatsApp or the website.
+Note: In OpenAI mode, wording may vary slightly. This transcript avoids inventing unsupported fields: the current SOP supports interested service, previous visit status, and preferred booking channel.
 
-**AI Qualification Question:** Which service are you interested in: Botox, fillers, or consultation?
+```text
+Closira Demo Assistant - Bloom Aesthetics Clinic
+Type 'summary' to end the session and generate a structured summary.
 
-**Customer:** Fillers
+Customer: I want to book an appointment.
+AI: Bookings can be made via WhatsApp or the website.
+To help you better, may I ask:
+- Which service are you interested in: Botox, fillers, or consultation?
+Customer: Fillers
 
-**AI Qualification Question:** Have you visited Bloom Aesthetics Clinic before?
+Customer: What are your opening hours?
+AI: Bloom Aesthetics Clinic is open Monday to Saturday, 9 am to 7 pm.
+To help you better, may I ask:
+- Have you visited Bloom Aesthetics Clinic before?
+Customer: No, this will be my first visit.
 
-**Customer:** No, this will be my first visit.
+Customer: Can I book online?
+AI: Bookings can be made via WhatsApp or the website.
+To help you better, may I ask:
+- Would you prefer booking through WhatsApp or the website?
+Customer: WhatsApp
+```
 
-**AI Qualification Question:** Would you prefer booking through WhatsApp or the website?
-
-**Customer:** WhatsApp
-
-**Expected Qualification Summary:**
+Expected qualification details collected:
 
 - Interested service: Fillers
-- Visit status: First visit
-- Booking preference: WhatsApp
-- Recommended next action: Guide customer to book via WhatsApp
+- Previous visit status: No, this will be my first visit.
+- Preferred booking channel: WhatsApp
+
+Current limitation:
+
+- The current CLI does not ask for business type, customer type, team size, or current tools because those fields are not part of the current Bloom Aesthetics Clinic SOP.

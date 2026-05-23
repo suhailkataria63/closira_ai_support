@@ -1,15 +1,23 @@
-# Test Transcript 01 — In-SOP Question
+# Test Transcript 01 - In-SOP Question
 
-**Customer:** What are your Botox prices?
+Expected assignment behaviour: SOP grounded answering.
 
-**AI:** Botox starts from £200 at Bloom Aesthetics Clinic.
+Note: In OpenAI mode, wording may vary slightly, but the answer should remain grounded in `data/sop.json`.
 
-**AI Qualification Question:** Which service are you interested in: Botox, fillers, or consultation?
+```text
+Closira Demo Assistant - Bloom Aesthetics Clinic
+Type 'summary' to end the session and generate a structured summary.
 
-**Customer:** Botox
+Customer: What are your Botox prices?
+AI: Botox starts from £200 at Bloom Aesthetics Clinic.
+To help you better, may I ask:
+- Which service are you interested in: Botox, fillers, or consultation?
+Customer: Botox
+```
 
-**Expected Behaviour:**
+Expected behaviour:
 
-- AI answers from SOP only.
-- AI does not invent exact final treatment price.
-- No escalation required.
+- AI answers from the SOP only.
+- AI does not invent a final treatment price.
+- AI asks the first lead qualification question naturally.
+- No escalation is required.

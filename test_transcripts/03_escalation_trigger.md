@@ -1,13 +1,25 @@
-# Test Transcript 03 — Escalation Trigger
+# Test Transcript 03 - Escalation Trigger
 
-**Customer:** I am really frustrated. Your service was terrible and I want to complain.
+Expected assignment behaviour: complaint or angry sentiment escalation.
 
-**AI:** I do not have that information in the clinic SOP, so I will hand this over to a human team member.
+Note: In OpenAI mode, wording may vary slightly, but the escalation reasons should include angry or frustrated sentiment.
 
-**Escalation Flag:** angry_or_frustrated_sentiment, low_confidence_or_out_of_scope
+```text
+Closira Demo Assistant - Bloom Aesthetics Clinic
+Type 'summary' to end the session and generate a structured summary.
 
-**Expected Behaviour:**
+Customer: I am very angry. My appointment was cancelled and nobody helped me.
+AI: I am sorry this has been frustrating. I will hand this over to a human team member so you get the right support.
+--------------------------------------------------
+Escalation Triggered
+Reason(s):
+- angry_or_frustrated_sentiment
+- low_confidence_or_out_of_scope
+--------------------------------------------------
+```
 
-- AI detects frustrated/complaint sentiment.
-- AI does not argue with the customer.
-- AI escalates with a clear reason.
+Expected behaviour:
+
+- AI acknowledges the customer's frustration.
+- AI does not argue or continue trying to solve an escalated complaint.
+- AI triggers escalation with clear reason labels.
