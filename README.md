@@ -1,19 +1,23 @@
 # Closira AI Customer Support Workflow Assignment
 
-This project is a Python-based AI customer support workflow for a fictional SMB: **Bloom Aesthetics Clinic**. It demonstrates FAQ answering from SOP data, lead qualification, escalation detection, and structured conversation summarization.
+## Description
+
+This project is a terminal-based AI customer support workflow for a fictional SMB, **Bloom Aesthetics Clinic**. It demonstrates how an assistant can answer FAQ-style questions from an SOP, qualify leads, detect escalation triggers, and produce a structured conversation summary.
+
+The workflow can use the OpenAI API when an API key is configured. If no key is available, it still runs in a deterministic fallback mode for reliable demos and testing.
+
+## Assignment Objective
+
+Build a lightweight customer support assistant that follows a provided SOP, avoids unsupported answers, collects lead qualification details, escalates risky or out-of-scope conversations, and summarizes the interaction for a human team member.
 
 ## Features
 
-- SOP grounded answering
-- Lead qualification with three structured questions
+- SOP-grounded FAQ answering
+- Lead qualification with 3 structured questions
 - Escalation detection
 - Structured conversation summary
-- OpenAI integration
+- OpenAI API integration
 - Safe fallback mode
-- Answers customer questions only from the provided SOP
-- Avoids hallucinating unsupported facts
-- Detects escalation triggers such as complaints, medical questions, pricing negotiation, angry sentiment, explicit human request, low confidence, and out-of-scope questions
-- Logs conversation events and escalation reasons
 
 ## Project Structure
 
@@ -43,71 +47,83 @@ closira_ai_support_assignment/
 └── requirements.txt
 ```
 
-## SOP Data
-
-The workflow uses `data/sop.json` as its knowledge source. The current SOP is for Bloom Aesthetics Clinic:
-
-- Hours: Monday to Saturday, 9 am to 7 pm
-- Services: Botox from £200, fillers from £250, consultations free
-- Booking: WhatsApp or website
-- Cancellation: 24 hours notice required
-- Escalate for complaints, medical questions, pricing negotiation, or more than two unanswered questions
-
 ## Setup
 
+Create and activate a virtual environment:
+
 ```bash
-git clone <your-github-repo-url>
-cd closira_ai_support_assignment
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Copy the example environment file:
+
+```bash
 cp .env.example .env
 ```
 
-Add your API key in `.env`:
+Add your OpenAI API key locally in `.env`:
 
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-## OpenAI Setup
-
-The app uses the OpenAI API when `OPENAI_API_KEY` is available. To run with OpenAI:
+Run the CLI:
 
 ```bash
-cp .env.example .env
+python3 src/main.py
 ```
 
-Add your local key to `.env`:
+Do not commit `.env`. It is ignored by git.
 
-```bash
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
-```
+## Testing Scenarios
 
-Then install dependencies and start the CLI:
+Run the app with `python3 src/main.py`, then try the following scenarios.
 
-```bash
-pip install -r requirements.txt
-python src/main.py
-```
-
-Do not commit `.env`; it is ignored by git. If no API key is provided, the project still runs in rule-based fallback demo mode so the assignment can be tested reliably without external API access.
-
-## Run the Workflow
-
-```bash
-python src/main.py
-```
-
-Type customer messages in the CLI. Type `summary` to end the conversation and generate the final structured summary.
-
-## Example
+### In-SOP Question
 
 ```text
 Customer: What are your Botox prices?
-AI: Botox starts from £200 at Bloom Aesthetics Clinic.
+```
+
+Expected: the assistant answers from the SOP, for example: `Botox starts from £200 at Bloom Aesthetics Clinic.`
+
+### Out-of-Scope Question
+
+```text
+Customer: Do you offer laser hair removal?
+```
+
+Expected: the assistant does not guess, identifies that the information is not in the SOP, and triggers escalation.
+
+### Complaint or Frustration
+
+```text
+Customer: I am very angry. My appointment was cancelled and nobody helped me.
+```
+
+Expected: the assistant acknowledges frustration and triggers escalation.
+
+### Medical Question
+
+```text
+Customer: Is Botox safe if I am pregnant?
+```
+
+Expected: the assistant escalates instead of giving medical advice.
+
+### Lead Qualification
+
+After a valid in-SOP answer, the assistant asks exactly three structured questions:
+
+```text
 To help you better, may I ask:
 - Which service are you interested in: Botox, fillers, or consultation?
 Customer: Botox
@@ -117,32 +133,34 @@ Customer: No
 To help you better, may I ask:
 - What is your preferred booking channel: WhatsApp or website?
 Customer: WhatsApp
+```
+
+### Conversation Summary
+
+Type:
+
+```text
 Customer: summary
 ```
 
+Expected: the app prints a formatted summary with customer intent, collected details, SOP gaps, escalation reasons, and recommended next action.
+
+Additional sample runs are documented in `test_transcripts/`.
+
 ## Logs
 
-Conversation logs are written to:
+Conversation events are written to:
 
 ```text
 logs/conversation_log.jsonl
 ```
 
-Each log entry includes timestamp, event type, and payload.
+The log file is ignored by git.
 
-## Test Transcripts
+## Known Limitations and Trade-Offs
 
-The `test_transcripts/` folder contains sample conversations for all required behaviours:
-
-1. In-SOP question
-2. Out-of-scope question
-3. Escalation trigger
-4. Lead qualification
-5. Conversation summary
-
-## Known Limitations
-
-- The prototype uses keyword-based escalation checks in addition to LLM output.
-- It does not include a frontend UI because the assignment allows a CLI/script-based prototype.
-- It does not schedule real bookings; it only guides the user based on SOP instructions.
-- Medical questions are escalated instead of answered.
+- CLI only; there is no frontend.
+- The SOP is intentionally small for assignment clarity.
+- Fallback mode is deterministic and demo-oriented, so it is less flexible than the OpenAI path.
+- OpenAI responses may vary slightly, but they must remain SOP-grounded.
+- Escalation detection uses keyword/rule checks alongside model output, which improves reliability but may miss subtle phrasing.

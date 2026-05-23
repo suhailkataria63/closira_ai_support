@@ -1,6 +1,6 @@
 # Prompt Design
 
-## System Prompt
+## Full System Prompt
 
 ```text
 You are Closira Assistant for Bloom Aesthetics Clinic.
@@ -10,9 +10,10 @@ Core rules:
 1. Answer only from SOP data. Never invent prices, medical advice, policies, discounts, or services.
 2. If the SOP does not contain the answer, say you do not have that information and escalate to a human.
 3. Escalate immediately for complaints, medical questions, pricing negotiation, angry sentiment, explicit human-agent requests, low confidence, or more than two unanswered questions.
-4. Keep tone warm, concise, professional, and suitable for a small business customer support assistant.
-5. Ask structured lead qualification questions after answering the customer when appropriate.
-6. Return outputs in valid JSON with these fields:
+4. Keep tone friendly, concise, professional, and suitable for small business customer support.
+5. Avoid robotic phrasing. Give short, natural answers that sound helpful but do not overpromise.
+6. Ask structured lead qualification questions after answering the customer when appropriate.
+7. Return outputs in valid JSON with these fields:
    answer: string
    confidence: number between 0 and 1
    used_sop_fields: list of strings
@@ -25,41 +26,62 @@ SOP data:
 {SOP_JSON}
 ```
 
-## Reasoning for Key Design Choices
+## Design Rationale
 
-The prompt is designed for a customer support workflow where reliability is more important than creativity. The assistant is explicitly restricted to the SOP so that it does not invent clinic policies, prices, or medical advice. The JSON output format makes the model response easier to validate in code and supports downstream workflow steps such as escalation logging, lead qualification, and summary generation.
+The prompt is designed for reliability over creativity. Customer support for an SMB needs clear, bounded answers rather than broad model reasoning. The assistant is therefore instructed to answer only from the SOP, avoid unsupported claims, and return explicit flags that the workflow can validate.
 
-## OpenAI API Usage
-
-When `OPENAI_API_KEY` is set, the app uses the OpenAI Python SDK to generate SOP-grounded FAQ responses and final conversation summaries. The model is selected with `OPENAI_MODEL`, defaulting to `gpt-4o-mini`.
-
-The OpenAI path uses the same strict SOP boundary as the system prompt: answer only from the provided SOP, do not guess missing information, and return escalation flags and reasons when escalation is needed.
+The prompt also separates the AI response from workflow control. The model can propose an answer and escalation metadata, while the Python workflow still performs deterministic checks for low confidence, out-of-scope questions, complaint sentiment, medical topics, and human handoff requests.
 
 ## Hallucination Prevention
 
-The assistant is instructed to answer only from the SOP data. If the answer is not available in the SOP, it must acknowledge the gap and escalate. This prevents the model from guessing missing details such as exact treatment suitability, discounts, availability, medical risks, or custom pricing.
+The main hallucination control is the SOP boundary: the assistant may only answer using `data/sop.json`. If a customer asks about something absent from the SOP, such as unsupported services, medical suitability, discounts, or custom pricing, the assistant should not guess.
 
-The code also applies a second safety layer. If the response has low confidence, is out of scope, or matches escalation keywords, the workflow flags escalation even if the model response itself fails to do so.
+The workflow adds a second layer of protection. Even if the model output is too confident, the code checks escalation rules independently and can still flag the conversation for a human.
 
-If no API key is configured, or if an API call fails, the code uses a deterministic fallback mode. This fallback is intended for demo/testing reliability and keeps the CLI runnable without external API access.
+## Confidence and Out-of-Scope Escalation
 
-## Confidence-Based Escalation
+The workflow treats confidence below `0.65` as low confidence. Low-confidence answers and out-of-scope questions are escalated because the assistant should not continue when the SOP does not support the answer.
 
-The workflow uses a confidence threshold of `0.65`. Any response below this threshold is treated as low confidence and escalated. The model is asked to return a `confidence` value, but the workflow does not rely only on the model. It also checks for:
+Out-of-scope examples include:
 
-- out-of-scope questions
-- angry or frustrated sentiment
-- explicit human-agent requests
-- medical questions
-- pricing negotiation
-- more than two unanswered questions
-
-Escalation reasons are stored in `logs/conversation_log.jsonl`.
+- services not listed in the SOP
+- medical advice or treatment suitability
+- unlisted prices or discounts
+- policies not present in the SOP
 
 ## Tone and Persona
 
-The tone is warm, concise, and professional. This is suitable for SMB customer support because customers usually want quick, clear answers rather than long explanations. The assistant avoids robotic wording but also avoids overpromising.
+The assistant uses a friendly, concise, professional tone suitable for small business customer support. It should sound helpful and calm without overpromising. Responses should be short because customers usually want quick answers and a clear next step.
 
-## Trade-Offs
+## Escalation Triggers
 
-This prototype uses both LLM prompting and deterministic keyword-based checks. The benefit is reliability and easier testing. The limitation is that keyword detection may miss subtle sentiment or unusual wording. In production, this could be improved using a dedicated sentiment classifier, better retrieval over SOP documents, and human feedback loops.
+The workflow escalates for:
+
+- out-of-scope or low-confidence answers
+- angry sentiment or complaints
+- medical questions
+- pricing negotiation
+- explicit human handoff requests
+- more than two unanswered questions
+
+Escalation reasons are returned as clear labels such as `low_confidence_or_out_of_scope`, `angry_or_frustrated_sentiment`, `medical_question`, `pricing_negotiation`, and `explicit_human_request`.
+
+## Structured Output and Reliability
+
+The OpenAI response is requested as JSON with clear fields:
+
+- `answer`
+- `confidence`
+- `used_sop_fields`
+- `out_of_scope`
+- `escalation_required`
+- `escalation_reason`
+- `next_question`
+
+This structure makes the response easier to validate, log, and pass into later workflow stages. It also keeps the four assignment stages explicit: FAQ answering, lead qualification, escalation detection, and conversation summary.
+
+## OpenAI and Fallback Mode
+
+When `OPENAI_API_KEY` is available, the app uses the OpenAI Python SDK for SOP-grounded FAQ answering and final summary generation. The model is selected with `OPENAI_MODEL`, defaulting to `gpt-4o-mini`.
+
+If no API key is configured, the OpenAI package is unavailable, or an API call fails, the app uses deterministic fallback logic. This fallback mode supports safe testing and demos because the CLI remains runnable without external API access.
