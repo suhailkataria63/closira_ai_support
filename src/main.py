@@ -1,9 +1,9 @@
-from agent import SupportWorkflow
+from workflow import SupportWorkflow
 
 
 def main() -> None:
     workflow = SupportWorkflow()
-    print("Closira Demo Assistant — Bloom Aesthetics Clinic")
+    print("Closira Demo Assistant - Bloom Aesthetics Clinic")
     print("Type 'summary' to end the session and generate a structured summary.\n")
 
     while True:

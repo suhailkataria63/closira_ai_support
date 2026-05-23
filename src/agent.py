@@ -1,14 +1,17 @@
 import json
 import os
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
-from openai import OpenAI
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv() -> bool:
+        return False
 
-from escalation import detect_escalation
-from logger import ConversationLogger
-from sop_loader import load_sop
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 
 SYSTEM_PROMPT = """
@@ -35,64 +38,100 @@ SOP data:
 """
 
 
-@dataclass
-class ConversationState:
-    messages: List[Dict[str, str]] = field(default_factory=list)
-    lead_details: Dict[str, str] = field(default_factory=dict)
-    unanswered_count: int = 0
-    escalation_reasons: List[str] = field(default_factory=list)
-    sop_gaps: List[str] = field(default_factory=list)
+class SupportAgent:
+    """Generates SOP-grounded support responses with a rule-based fallback."""
 
-
-class SupportWorkflow:
-    def __init__(self, sop_path: str = "data/sop.json", use_llm: bool = True) -> None:
+    def __init__(self, sop: Dict[str, Any], use_llm: bool = True) -> None:
         load_dotenv()
-        self.sop = load_sop(sop_path)
-        self.state = ConversationState()
-        self.logger = ConversationLogger()
+        self.sop = sop
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self.use_llm = use_llm and bool(os.getenv("OPENAI_API_KEY"))
-        self.client: Optional[OpenAI] = OpenAI() if self.use_llm else None
-        self.qualification_index = 0
+        self.use_llm = use_llm and bool(os.getenv("OPENAI_API_KEY")) and OpenAI is not None
+        self.client = OpenAI() if self.use_llm else None
+
+    def answer_faq(
+        self,
+        customer_message: str,
+        conversation_messages: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        if not self.use_llm:
+            return self._fallback_answer(customer_message)
+
+        try:
+            return self._llm_answer(customer_message, conversation_messages or [])
+        except Exception:
+            return self._fallback_answer(customer_message)
+
+    def next_lead_question(self, qualification_index: int) -> Optional[str]:
+        questions = self.sop.get("lead_qualification_questions", [])
+        if qualification_index >= len(questions):
+            return None
+        return questions[qualification_index]
+
+    def generate_summary(
+        self,
+        messages: List[Dict[str, str]],
+        lead_details: Dict[str, str],
+        sop_gaps: List[str],
+        escalation_reasons: List[str],
+    ) -> Dict[str, Any]:
+        return {
+            "customer_intent": self._infer_intent(messages),
+            "key_details_collected": lead_details,
+            "sop_gaps_identified": sop_gaps,
+            "escalation_reasons": sorted(set(escalation_reasons)),
+            "recommended_next_action": self._recommended_action(lead_details, escalation_reasons),
+        }
 
     def _system_prompt(self) -> str:
         return SYSTEM_PROMPT.replace("{SOP_JSON}", json.dumps(self.sop, indent=2))
 
+    def _llm_answer(self, customer_message: str, conversation_messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        assert self.client is not None
+        response = self.client.chat.completions.create(
+            model=self.model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": self._system_prompt()},
+                *conversation_messages,
+                {"role": "user", "content": customer_message},
+            ],
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or "{}"
+        return json.loads(content)
+
     def _fallback_answer(self, customer_message: str) -> Dict[str, Any]:
-        """Rule-based fallback for demo/testing when no API key is configured."""
         text = customer_message.lower()
         used_fields: List[str] = []
         out_of_scope = False
         answer = ""
         confidence = 0.9
 
+        services = self.sop.get("services", {})
+        business_name = self.sop.get("business_name", "the clinic")
+
         if "botox" in text and ("price" in text or "cost" in text):
-            answer = "Botox starts from £200 at Bloom Aesthetics Clinic."
+            answer = f"Botox starts {services.get('Botox', 'from the SOP')} at {business_name}."
             used_fields = ["services.Botox"]
         elif "filler" in text and ("price" in text or "cost" in text):
-            answer = "Fillers start from £250 at Bloom Aesthetics Clinic."
+            answer = f"Fillers start {services.get('Fillers', 'from the SOP')} at {business_name}."
             used_fields = ["services.Fillers"]
         elif "consultation" in text or "consult" in text:
-            answer = "Consultations are free at Bloom Aesthetics Clinic."
+            answer = f"Consultations are {services.get('Consultations', 'listed in the SOP')} at {business_name}."
             used_fields = ["services.Consultations"]
         elif "hour" in text or "open" in text or "timing" in text:
-            answer = "Bloom Aesthetics Clinic is open Monday to Saturday, 9 am to 7 pm."
+            answer = f"{business_name} is open {self.sop.get('hours', 'during the hours listed in the SOP')}."
             used_fields = ["hours"]
         elif "book" in text or "appointment" in text:
-            answer = "Bookings can be made via WhatsApp or the website."
+            answer = self.sop.get("booking", "Bookings can be made using the process listed in the SOP.")
             used_fields = ["booking"]
         elif "cancel" in text:
-            answer = "Bloom Aesthetics Clinic requires 24 hours cancellation notice."
+            answer = self.sop.get("cancellation_policy", "Please follow the cancellation policy listed in the SOP.")
             used_fields = ["cancellation_policy"]
         else:
             out_of_scope = True
             confidence = 0.25
             answer = "I do not have that information in the clinic SOP, so I will hand this over to a human team member."
-
-        next_question = None
-        if not out_of_scope and self.qualification_index < len(self.sop["lead_qualification_questions"]):
-            next_question = self.sop["lead_qualification_questions"][self.qualification_index]
-            self.qualification_index += 1
 
         return {
             "answer": answer,
@@ -101,68 +140,11 @@ class SupportWorkflow:
             "out_of_scope": out_of_scope,
             "escalation_required": out_of_scope,
             "escalation_reason": ["low_confidence_or_out_of_scope"] if out_of_scope else [],
-            "next_question": next_question,
+            "next_question": None,
         }
 
-    def _llm_answer(self, customer_message: str) -> Dict[str, Any]:
-        assert self.client is not None
-        response = self.client.chat.completions.create(
-            model=self.model,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": self._system_prompt()},
-                *self.state.messages,
-                {"role": "user", "content": customer_message},
-            ],
-            temperature=0.2,
-        )
-        content = response.choices[0].message.content or "{}"
-        return json.loads(content)
-
-    def handle_message(self, customer_message: str) -> Dict[str, Any]:
-        first_pass = self._fallback_answer(customer_message) if not self.use_llm else self._llm_answer(customer_message)
-        low_confidence = first_pass.get("confidence", 0) < 0.65 or first_pass.get("out_of_scope", False)
-        escalation = detect_escalation(customer_message, self.state.unanswered_count, low_confidence)
-
-        if first_pass.get("out_of_scope"):
-            self.state.unanswered_count += 1
-            self.state.sop_gaps.append(customer_message)
-        else:
-            self.state.unanswered_count = 0
-
-        reasons = sorted(set(first_pass.get("escalation_reason", []) + escalation.reasons))
-        first_pass["escalation_required"] = first_pass.get("escalation_required", False) or escalation.should_escalate
-        first_pass["escalation_reason"] = reasons
-
-        if first_pass["escalation_required"] and not first_pass["answer"].lower().startswith("i do not"):
-            first_pass["answer"] += " I will hand this over to a human team member so you get the right support."
-
-        self.state.messages.append({"role": "user", "content": customer_message})
-        self.state.messages.append({"role": "assistant", "content": first_pass["answer"]})
-        self.state.escalation_reasons.extend(reasons)
-
-        self.logger.write("customer_message", {"message": customer_message})
-        self.logger.write("assistant_response", first_pass)
-
-        return first_pass
-
-    def store_lead_response(self, question: str, answer: str) -> None:
-        self.state.lead_details[question] = answer
-        self.logger.write("lead_detail_collected", {"question": question, "answer": answer})
-
-    def summarize(self) -> Dict[str, Any]:
-        summary = {
-            "customer_intent": self._infer_intent(),
-            "key_details_collected": self.state.lead_details,
-            "sop_gaps_identified": self.state.sop_gaps,
-            "escalation_reasons": sorted(set(self.state.escalation_reasons)),
-            "recommended_next_action": self._recommended_action(),
-        }
-        self.logger.write("conversation_summary", summary)
-        return summary
-
-    def _infer_intent(self) -> str:
-        combined = " ".join(message["content"].lower() for message in self.state.messages if message["role"] == "user")
+    def _infer_intent(self, messages: List[Dict[str, str]]) -> str:
+        combined = " ".join(message["content"].lower() for message in messages if message["role"] == "user")
         if "botox" in combined:
             return "Asked about Botox service/pricing"
         if "filler" in combined:
@@ -171,9 +153,17 @@ class SupportWorkflow:
             return "Interested in booking an appointment"
         return "General customer enquiry"
 
-    def _recommended_action(self) -> str:
-        if self.state.escalation_reasons:
+    def _recommended_action(self, lead_details: Dict[str, str], escalation_reasons: List[str]) -> str:
+        if escalation_reasons:
             return "Human agent should review and respond before continuing the conversation."
-        if self.state.lead_details:
+        if lead_details:
             return "Proceed with booking guidance through WhatsApp or website."
         return "Ask lead qualification questions and continue support."
+
+
+def __getattr__(name: str) -> Any:
+    if name == "SupportWorkflow":
+        from workflow import SupportWorkflow
+
+        return SupportWorkflow
+    raise AttributeError(f"module 'agent' has no attribute {name!r}")
