@@ -29,11 +29,19 @@ SOP data:
 
 The prompt is designed for a customer support workflow where reliability is more important than creativity. The assistant is explicitly restricted to the SOP so that it does not invent clinic policies, prices, or medical advice. The JSON output format makes the model response easier to validate in code and supports downstream workflow steps such as escalation logging, lead qualification, and summary generation.
 
+## OpenAI API Usage
+
+When `OPENAI_API_KEY` is set, the app uses the OpenAI Python SDK to generate SOP-grounded FAQ responses and final conversation summaries. The model is selected with `OPENAI_MODEL`, defaulting to `gpt-4o-mini`.
+
+The OpenAI path uses the same strict SOP boundary as the system prompt: answer only from the provided SOP, do not guess missing information, and return escalation flags and reasons when escalation is needed.
+
 ## Hallucination Prevention
 
 The assistant is instructed to answer only from the SOP data. If the answer is not available in the SOP, it must acknowledge the gap and escalate. This prevents the model from guessing missing details such as exact treatment suitability, discounts, availability, medical risks, or custom pricing.
 
 The code also applies a second safety layer. If the response has low confidence, is out of scope, or matches escalation keywords, the workflow flags escalation even if the model response itself fails to do so.
+
+If no API key is configured, or if an API call fails, the code uses a deterministic fallback mode. This fallback is intended for demo/testing reliability and keeps the CLI runnable without external API access.
 
 ## Confidence-Based Escalation
 

@@ -38,6 +38,22 @@ SOP data:
 """
 
 
+SUMMARY_PROMPT = """
+You are summarizing a customer support conversation for Bloom Aesthetics Clinic.
+Use only the provided conversation state and SOP context. Do not invent details.
+
+Return valid JSON with these fields:
+customer_intent: string
+key_details_collected: object
+sop_gaps_identified: list of strings
+escalation_reasons: list of strings
+recommended_next_action: string
+
+SOP data:
+{SOP_JSON}
+"""
+
+
 class SupportAgent:
     """Generates SOP-grounded support responses with a rule-based fallback."""
 
@@ -74,6 +90,21 @@ class SupportAgent:
         sop_gaps: List[str],
         escalation_reasons: List[str],
     ) -> Dict[str, Any]:
+        if self.use_llm:
+            try:
+                return self._llm_summary(messages, lead_details, sop_gaps, escalation_reasons)
+            except Exception:
+                pass
+
+        return self._fallback_summary(messages, lead_details, sop_gaps, escalation_reasons)
+
+    def _fallback_summary(
+        self,
+        messages: List[Dict[str, str]],
+        lead_details: Dict[str, str],
+        sop_gaps: List[str],
+        escalation_reasons: List[str],
+    ) -> Dict[str, Any]:
         return {
             "customer_intent": self._infer_intent(messages),
             "key_details_collected": lead_details,
@@ -84,6 +115,9 @@ class SupportAgent:
 
     def _system_prompt(self) -> str:
         return SYSTEM_PROMPT.replace("{SOP_JSON}", json.dumps(self.sop, indent=2))
+
+    def _summary_prompt(self) -> str:
+        return SUMMARY_PROMPT.replace("{SOP_JSON}", json.dumps(self.sop, indent=2))
 
     def _llm_answer(self, customer_message: str, conversation_messages: List[Dict[str, str]]) -> Dict[str, Any]:
         assert self.client is not None
@@ -99,6 +133,42 @@ class SupportAgent:
         )
         content = response.choices[0].message.content or "{}"
         return json.loads(content)
+
+    def _llm_summary(
+        self,
+        messages: List[Dict[str, str]],
+        lead_details: Dict[str, str],
+        sop_gaps: List[str],
+        escalation_reasons: List[str],
+    ) -> Dict[str, Any]:
+        assert self.client is not None
+        conversation_state = {
+            "messages": messages,
+            "lead_details": lead_details,
+            "sop_gaps": sop_gaps,
+            "escalation_reasons": sorted(set(escalation_reasons)),
+        }
+        response = self.client.chat.completions.create(
+            model=self.model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": self._summary_prompt()},
+                {"role": "user", "content": json.dumps(conversation_state, indent=2)},
+            ],
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or "{}"
+        summary = json.loads(content)
+        return {
+            "customer_intent": summary.get("customer_intent", self._infer_intent(messages)),
+            "key_details_collected": summary.get("key_details_collected", lead_details),
+            "sop_gaps_identified": summary.get("sop_gaps_identified", sop_gaps),
+            "escalation_reasons": summary.get("escalation_reasons", sorted(set(escalation_reasons))),
+            "recommended_next_action": summary.get(
+                "recommended_next_action",
+                self._recommended_action(lead_details, escalation_reasons),
+            ),
+        }
 
     def _fallback_answer(self, customer_message: str) -> Dict[str, Any]:
         text = customer_message.lower()

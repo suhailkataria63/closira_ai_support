@@ -26,7 +26,8 @@ closira_ai_support_assignment/
 │   ├── escalation.py
 │   ├── logger.py
 │   ├── main.py
-│   └── sop_loader.py
+│   ├── sop_loader.py
+│   └── workflow.py
 ├── test_transcripts/
 │   ├── 01_in_sop_question.md
 │   ├── 02_out_of_scope_question.md
@@ -64,11 +65,33 @@ cp .env.example .env
 Add your API key in `.env`:
 
 ```bash
-OPENAI_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-If no API key is provided, the project still runs in fallback demo mode.
+## OpenAI Setup
+
+The app uses the OpenAI API when `OPENAI_API_KEY` is available. To run with OpenAI:
+
+```bash
+cp .env.example .env
+```
+
+Add your local key to `.env`:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Then install dependencies and start the CLI:
+
+```bash
+pip install -r requirements.txt
+python src/main.py
+```
+
+Do not commit `.env`; it is ignored by git. If no API key is provided, the project still runs in rule-based fallback demo mode so the assignment can be tested reliably without external API access.
 
 ## Run the Workflow
 
