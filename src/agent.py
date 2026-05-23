@@ -181,7 +181,11 @@ class SupportAgent:
         services = self.sop.get("services", {})
         business_name = self.sop.get("business_name", "the clinic")
 
-        if "botox" in text and ("price" in text or "cost" in text):
+        if any(word in text for word in ["angry", "frustrated", "upset", "cancelled", "complaint"]):
+            out_of_scope = True
+            confidence = 0.25
+            answer = "I am sorry this has been frustrating."
+        elif "botox" in text and ("price" in text or "cost" in text):
             answer = f"Botox starts {services.get('Botox', 'from the SOP')} at {business_name}."
             used_fields = ["services.Botox"]
         elif "filler" in text and ("price" in text or "cost" in text):
