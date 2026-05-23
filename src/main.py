@@ -20,6 +20,14 @@ def print_list(title: str, items: object) -> None:
 
 
 def format_detail_label(label: str) -> str:
+    key_labels = {
+        "interested_service": "Interested service",
+        "previous_visit_status": "Previous visit status",
+        "preferred_booking_channel": "Preferred booking channel",
+    }
+    if label in key_labels:
+        return key_labels[label]
+
     normalized = label.strip().rstrip("?")
     lower_label = normalized.lower()
 
@@ -65,6 +73,16 @@ def print_escalation(reasons: list) -> None:
     print(DIVIDER)
 
 
+def collect_lead_answers(workflow: SupportWorkflow, first_question: str) -> None:
+    question = first_question
+    while question:
+        print("To help you better, may I ask:")
+        print(f"- {question}")
+        lead_answer = input("Customer: ").strip()
+        workflow.store_lead_response(question, lead_answer)
+        question = workflow.next_lead_question()
+
+
 def main() -> None:
     workflow = SupportWorkflow()
     print("Closira Demo Assistant - Bloom Aesthetics Clinic")
@@ -82,11 +100,7 @@ def main() -> None:
         response = workflow.handle_message(customer_message)
         print(f"AI: {response['answer']}")
         if response.get("next_question"):
-            question = response["next_question"]
-            print("To help you better, may I ask:")
-            print(f"- {question}")
-            lead_answer = input("Customer: ").strip()
-            workflow.store_lead_response(question, lead_answer)
+            collect_lead_answers(workflow, response["next_question"])
 
         if response.get("escalation_required"):
             print_escalation(response.get("escalation_reason", []))
