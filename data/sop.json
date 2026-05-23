@@ -1,0 +1,27 @@
+{
+  "business_name": "Bloom Aesthetics Clinic",
+  "business_type": "Aesthetics clinic",
+  "hours": "Monday to Saturday, 9 am to 7 pm",
+  "services": {
+    "Botox": "from £200",
+    "Fillers": "from £250",
+    "Consultations": "free"
+  },
+  "booking": "Bookings can be made via WhatsApp or the website.",
+  "cancellation_policy": "24 hours cancellation notice is required.",
+  "escalation_rules": [
+    "complaint",
+    "medical question",
+    "pricing negotiation",
+    "more than 2 unanswered questions",
+    "low confidence",
+    "out-of-scope question",
+    "angry or frustrated sentiment",
+    "explicit request for a human agent"
+  ],
+  "lead_qualification_questions": [
+    "Which service are you interested in: Botox, fillers, or consultation?",
+    "Have you visited Bloom Aesthetics Clinic before?",
+    "Would you prefer booking through WhatsApp or the website?"
+  ]
+}
